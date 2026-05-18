@@ -8,6 +8,8 @@
 #include "tensorflow/lite/micro/system_setup.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 
+#include "esp_log.h"
+
 #include "main_functions.h"
 #include "model.h"
 #include "test_vectors.h"
@@ -162,4 +164,12 @@ void loop() {
 #endif
 
   g_indice_vetor = (g_indice_vetor + 1) % NUM_TEST_VECTORS;
+
+  // Reseta a estatistica a cada ciclo completo de NUM_TEST_VECTORS amostras
+  if (g_indice_vetor == 0) {
+    MicroPrintf("\n--- Ciclo completo: %d/%d acertos ---\n",
+                g_classe_ok, g_total_rodados);
+    g_classe_ok     = 0;
+    g_total_rodados = 0;
+  }
 }

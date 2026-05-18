@@ -4,7 +4,7 @@
 #include "main_functions.h"
 
 // Periodo entre inferencias (simula janela de 1 s do sinal real)
-#define INFERENCIA_PERIODO_MS  1000
+#define INFERENCIA_PERIODO_MS  5000
 
 extern "C" void app_main(void) {
   setup();
