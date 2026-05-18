@@ -1,112 +1,128 @@
-/* Copyright 2020 The TensorFlow Authors. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
-
+// Programa de validação bit-exata do modelo TFLite Micro no ESP32.
+// Executa todos os vetores de g_test_vectors[] e compara com a saída do
+// interpretador Python (gerada no notebook de treinamento).
 
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
+#include "tensorflow/lite/micro/micro_log.h"
 #include "tensorflow/lite/micro/system_setup.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 
 #include "main_functions.h"
 #include "model.h"
-#include "constants.h"
-#include "output_handler.h"
+#include "test_vectors.h"
 
-// Globals, used for compatibility with Arduino-style sketches.
+#include <cstring>
+
 namespace {
-const tflite::Model* model = nullptr;
-tflite::MicroInterpreter* interpreter = nullptr;
-TfLiteTensor* input = nullptr;
-TfLiteTensor* output = nullptr;
-int inference_count = 0;
+const tflite::Model*       model       = nullptr;
+tflite::MicroInterpreter*  interpreter = nullptr;
+TfLiteTensor*              input       = nullptr;
+TfLiteTensor*              output      = nullptr;
 
-constexpr int kTensorArenaSize = 2000;
-uint8_t tensor_arena[kTensorArenaSize];
+// 8 KB — folgado para uma MLP 57→64→32→5 int8.
+// Se AllocateTensors() falhar, aumente; se sobrar muito, reduza (veja log).
+constexpr int kTensorArenaSize = 8 * 1024;
+alignas(16) uint8_t tensor_arena[kTensorArenaSize];
 }  // namespace
 
-// The name of this function is important for Arduino compatibility.
 void setup() {
-  // Map the model into a usable data structure. This doesn't involve any
-  // copying or parsing, it's a very lightweight operation.
   model = tflite::GetModel(g_model);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
-    MicroPrintf("Model provided is schema version %d not equal to supported "
-                "version %d.", model->version(), TFLITE_SCHEMA_VERSION);
+    MicroPrintf("Schema mismatch: model=%d expected=%d",
+                static_cast<int>(model->version()), TFLITE_SCHEMA_VERSION);
     return;
   }
 
-  // Pull in only the operation implementations we need.
   static tflite::MicroMutableOpResolver<1> resolver;
   if (resolver.AddFullyConnected() != kTfLiteOk) {
+    MicroPrintf("AddFullyConnected failed");
     return;
   }
 
-  // Build an interpreter to run the model with.
   static tflite::MicroInterpreter static_interpreter(
       model, resolver, tensor_arena, kTensorArenaSize);
   interpreter = &static_interpreter;
 
-  // Allocate memory from the tensor_arena for the model's tensors.
-  TfLiteStatus allocate_status = interpreter->AllocateTensors();
-  if (allocate_status != kTfLiteOk) {
-    MicroPrintf("AllocateTensors() failed");
+  if (interpreter->AllocateTensors() != kTfLiteOk) {
+    MicroPrintf("AllocateTensors() failed — aumente kTensorArenaSize");
     return;
   }
 
-  // Obtain pointers to the model's input and output tensors.
-  input = interpreter->input(0);
+  input  = interpreter->input(0);
   output = interpreter->output(0);
 
-  // Keep track of how many inferences we have performed.
-  inference_count = 0;
+  MicroPrintf("=== Modelo carregado ===");
+  MicroPrintf("Input  : dtype=%d  bytes=%d", input->type,  (int)input->bytes);
+  MicroPrintf("Output : dtype=%d  bytes=%d", output->type, (int)output->bytes);
+  MicroPrintf("Arena usada: %d / %d bytes",
+              (int)interpreter->arena_used_bytes(), kTensorArenaSize);
+  MicroPrintf("Input  quant : scale=%.6f  zp=%d",
+              input->params.scale,  input->params.zero_point);
+  MicroPrintf("Output quant : scale=%.6f  zp=%d",
+              output->params.scale, output->params.zero_point);
+
+  if ((int)input->bytes != TEST_INPUT_SIZE) {
+    MicroPrintf("ERRO: input bytes (%d) != TEST_INPUT_SIZE (%d)",
+                (int)input->bytes, TEST_INPUT_SIZE);
+  }
+  if ((int)output->bytes != TEST_OUTPUT_SIZE) {
+    MicroPrintf("ERRO: output bytes (%d) != TEST_OUTPUT_SIZE (%d)",
+                (int)output->bytes, TEST_OUTPUT_SIZE);
+  }
 }
 
-// The name of this function is important for Arduino compatibility.
 void loop() {
-  // Calculate an x value to feed into the model. We compare the current
-  // inference_count to the number of inferences per cycle to determine
-  // our position within the range of possible x values the model was
-  // trained on, and use this to calculate a value.
-  float position = static_cast<float>(inference_count) /
-                   static_cast<float>(kInferencesPerCycle);
-  float x = position * kXrange;
-
-  // Quantize the input from floating-point to integer
-  int8_t x_quantized = x / input->params.scale + input->params.zero_point;
-  // Place the quantized input in the model's input tensor
-  input->data.int8[0] = x_quantized;
-
-  // Run inference, and report any error
-  TfLiteStatus invoke_status = interpreter->Invoke();
-  if (invoke_status != kTfLiteOk) {
-    MicroPrintf("Invoke failed on x: %f\n",
-                         static_cast<double>(x));
+  if (interpreter == nullptr) {
+    MicroPrintf("Interpreter nao inicializado.");
     return;
   }
 
-  // Obtain the quantized output from model's output tensor
-  int8_t y_quantized = output->data.int8[0];
-  // Dequantize the output from integer to floating-point
-  float y = (y_quantized - output->params.zero_point) * output->params.scale;
+  int bit_exact_ok = 0;
+  int classe_ok   = 0;
 
-  // Output the results. A custom HandleOutput function can be implemented
-  // for each supported hardware target.
-  HandleOutput(x, y);
+  MicroPrintf("\n=== Validacao com %d vetores de teste ===", NUM_TEST_VECTORS);
 
-  // Increment the inference_counter, and reset it if we have reached
-  // the total number per cycle
-  inference_count += 1;
-  if (inference_count >= kInferencesPerCycle) inference_count = 0;
+  for (int i = 0; i < NUM_TEST_VECTORS; ++i) {
+    const TestVector& tv = g_test_vectors[i];
+
+    // 1) Copia input pre-quantizado
+    std::memcpy(input->data.int8, tv.input, TEST_INPUT_SIZE);
+
+    // 2) Inferencia
+    if (interpreter->Invoke() != kTfLiteOk) {
+      MicroPrintf("[%2d] Invoke FAILED", i);
+      continue;
+    }
+
+    // 3) Compara saida byte-a-byte com a do Python
+    bool bit_exact = (std::memcmp(output->data.int8, tv.expected_output,
+                                  TEST_OUTPUT_SIZE) == 0);
+
+    // 4) argmax
+    int pred = 0;
+    for (int k = 1; k < TEST_OUTPUT_SIZE; ++k) {
+      if (output->data.int8[k] > output->data.int8[pred]) pred = k;
+    }
+
+    bool ok_class = (pred == tv.expected_class);
+    if (bit_exact) bit_exact_ok++;
+    if (ok_class)  classe_ok++;
+
+    MicroPrintf("[%2d] true=%d pred=%d expected=%d  classe=%s  bit-exact=%s",
+                i, tv.true_class, pred, tv.expected_class,
+                ok_class  ? "OK" : "FAIL",
+                bit_exact ? "OK" : "diff");
+  }
+
+  MicroPrintf("\n=== Resumo ===");
+  MicroPrintf("Bit-exato      : %d / %d", bit_exact_ok, NUM_TEST_VECTORS);
+  MicroPrintf("Classe correta : %d / %d", classe_ok,    NUM_TEST_VECTORS);
+
+  const char* veredito;
+  if (bit_exact_ok == NUM_TEST_VECTORS)      veredito = "PASS (bit-exato)";
+  else if (classe_ok == NUM_TEST_VECTORS)    veredito = "OK  (mesma classe; diferencas de arredondamento)";
+  else                                       veredito = "FAIL — verifique kTensorArenaSize, schema e op resolver";
+
+  MicroPrintf("Veredito       : %s", veredito);
 }
