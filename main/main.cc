@@ -3,12 +3,13 @@
 
 #include "main_functions.h"
 
+// Periodo entre inferencias (simula janela de 1 s do sinal real)
+#define INFERENCIA_PERIODO_MS  1000
+
 extern "C" void app_main(void) {
   setup();
-  loop();  // roda os test_vectors uma unica vez
-
-  // Mantem a task viva para preservar o log no UART
   while (true) {
-    vTaskDelay(pdMS_TO_TICKS(10000));
+    loop();
+    vTaskDelay(pdMS_TO_TICKS(INFERENCIA_PERIODO_MS));
   }
 }
