@@ -1,0 +1,1 @@
+# planetary_gearbox_fault_diagnosis_esp32_tflite
