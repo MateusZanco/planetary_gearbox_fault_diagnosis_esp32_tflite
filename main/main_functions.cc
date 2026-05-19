@@ -26,7 +26,7 @@
 #include <cmath>
 
 #define INFERENCIA_VIA_FEATURES_C  1  // 1 = usa features extraidas em C, 0 = usa test_vectors.h int8
-#define MOSTRAR_FEATURES           0
+#define MOSTRAR_FEATURES           1  // 1 = imprime tabela 22x3 das features calculadas em C
 
 namespace {
 const tflite::Model*       model       = nullptr;
@@ -113,6 +113,26 @@ static void normalizar_e_quantizar(const float* features) {
   }
 }
 
+static void imprimir_features_float(const float* feats) {
+  MicroPrintf("  Features calculadas em C (unidades reais):");
+  MicroPrintf("    %-13s %12s %12s %12s", "feature", "X", "Y", "Z");
+  for (int i = 0; i < FEATURES_POR_EIXO; ++i) {
+    float vx = feats[i + 0 * FEATURES_POR_EIXO];
+    float vy = feats[i + 1 * FEATURES_POR_EIXO];
+    float vz = feats[i + 2 * FEATURES_POR_EIXO];
+    MicroPrintf("    %s %12.5f %12.5f %12.5f",
+                kNomesFeatPorEixo[i], vx, vy, vz);
+  }
+}
+
+static void imprimir_probabilidades(const int8_t* out_q) {
+  MicroPrintf("  Probabilidades:");
+  for (int k = 0; k < TEST_OUTPUT_SIZE; ++k) {
+    float p = (out_q[k] - OUTPUT_ZERO_POINT) * OUTPUT_SCALE;
+    MicroPrintf("    [%d] %-22s %.4f", k, kNomesClasses[k], p);
+  }
+}
+
 static void comparar_features(const float* calculadas, const float* esperadas) {
   float max_abs_err = 0.0f;
   float max_rel_err = 0.0f;
@@ -170,6 +190,10 @@ void loop() {
               (unsigned)dt_feat);
   comparar_features(features_calculadas, s.expected_features);
 
+#if MOSTRAR_FEATURES
+  imprimir_features_float(features_calculadas);
+#endif
+
   // 3) Normaliza, quantiza e roda inferencia
 #if INFERENCIA_VIA_FEATURES_C
   normalizar_e_quantizar(features_calculadas);
@@ -201,6 +225,7 @@ void loop() {
   MicroPrintf("  Inferencia=%u ms  pred=%d (%s)  prob=%.3f  classe=%s  acuracia=%d/%d",
               (unsigned)dt_inf, pred, kNomesClasses[pred], prob_top,
               acertou ? "OK" : "FAIL", g_classe_ok, g_total_rodados);
+  imprimir_probabilidades(output->data.int8);
 
   g_indice_sinal = (g_indice_sinal + 1) % NUM_TEST_SIGNALS;
   if (g_indice_sinal == 0) {
