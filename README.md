@@ -214,14 +214,6 @@ Sample output:
 
 ---
 
-## FFT Implementation Notes
-
-The firmware uses a pure-C iterative radix-2 Cooley-Tukey FFT (`fft_radix2` in `features.cc`) instead of `esp-dsp`. The decision was driven by initialization conflicts: when `esp-tflite-micro` is linked, the `dsps_fft2r_init_fc32` global state may already be claimed by `esp-nn` or another internal user, causing our own init call to return `ESP_ERR_DSP_REINITIALIZED` (0x70003) with no reliable way to reclaim the tables.
-
-The pure-C implementation is self-contained, has no global state, and runs an 8192-point FFT in roughly 50 ms on the ESP32-S3 at 240 MHz — far within the inference budget for this application. Switching to `esp-dsp` for a roughly 10× speed-up is straightforward once the init-order issue is solved upstream.
-
----
-
 ## Configuration Flags
 
 In `main/main_functions.cc`:
