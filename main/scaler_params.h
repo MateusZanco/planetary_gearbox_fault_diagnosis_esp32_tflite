@@ -1,5 +1,5 @@
     // Auto-gerado pelo notebook de treinamento.
-    // 1) Calcule as 57 features na mesma ordem de FEATURE_NAMES.
+    // 1) Calcule as 66 features na mesma ordem de FEATURE_NAMES.
     // 2) Normalize:  norm[i] = (feat[i] - SCALER_MEAN[i]) / SCALER_SCALE[i]
     // 3) Quantize:   q[i]    = round(norm[i] / INPUT_SCALE + INPUT_ZERO_POINT)  [clip em -128..127]
     // 4) Copie q[] para input->data.int8[].
@@ -7,12 +7,12 @@
     #ifndef SCALER_PARAMS_H_
     #define SCALER_PARAMS_H_
 
-    #define N_FEATURES 57
+    #define N_FEATURES 66
     #define N_CLASSES  5
 
     // ---- Quantização da entrada (int8) ----
-    const float INPUT_SCALE       = 0.05156828f;
-    const int   INPUT_ZERO_POINT  = -82;
+    const float INPUT_SCALE       = 0.03863877f;
+    const int   INPUT_ZERO_POINT  = -60;
 
     // ---- Quantização da saída (int8) ----
     const float OUTPUT_SCALE      = 0.00390625f;
@@ -20,7 +20,7 @@
 
     // ---- Frequências cinemáticas usadas na extração de features ----
     const float FS_HZ             = 10000.0000f;
-    const int   AMOSTRAS_POR_SEG  = 10000;
+    const int   AMOSTRAS_POR_SEG  = 8192;
     const float FM1_TEORICO_HZ    = 416.666667f;
     const float FM2_TEORICO_HZ    = 91.145833f;
     const float FCSD1_HZ          = 20.833333f;
@@ -45,84 +45,97 @@
 // [11] amp_fm_h3_x
 // [12] amp_fm_h4_x
 // [13] amp_fm_h5_x
-// [14] amp_fm_h6_x
-// [15] amp_fm_h7_x
-// [16] fm1_real_x
-// [17] amp_fcsd1_dir_x
-// [18] amp_fcsl1_dir_x
-// [19] rms_y
-// [20] peak_value_y
-// [21] kurtosis_y
-// [22] crest_factor_y
-// [23] fm_real_y
-// [24] amp_fcsd_esq_y
-// [25] amp_fcsd_dir_y
-// [26] amp_fcsl_esq_y
-// [27] amp_fcsl_dir_y
-// [28] amp_fm_h1_y
-// [29] amp_fm_h2_y
-// [30] amp_fm_h3_y
-// [31] amp_fm_h4_y
-// [32] amp_fm_h5_y
-// [33] amp_fm_h6_y
-// [34] amp_fm_h7_y
-// [35] fm1_real_y
-// [36] amp_fcsd1_dir_y
-// [37] amp_fcsl1_dir_y
-// [38] rms_z
-// [39] peak_value_z
-// [40] kurtosis_z
-// [41] crest_factor_z
-// [42] fm_real_z
-// [43] amp_fcsd_esq_z
-// [44] amp_fcsd_dir_z
-// [45] amp_fcsl_esq_z
-// [46] amp_fcsl_dir_z
-// [47] amp_fm_h1_z
-// [48] amp_fm_h2_z
-// [49] amp_fm_h3_z
-// [50] amp_fm_h4_z
-// [51] amp_fm_h5_z
-// [52] amp_fm_h6_z
-// [53] amp_fm_h7_z
-// [54] fm1_real_z
-// [55] amp_fcsd1_dir_z
-// [56] amp_fcsl1_dir_z
+// [14] fm1_real_x
+// [15] amp_fcsd1_dir_x
+// [16] amp_fcsl1_dir_x
+// [17] amp_fm1_h1_x
+// [18] amp_fm1_h2_x
+// [19] amp_fm1_h3_x
+// [20] amp_fm1_h4_x
+// [21] amp_fm1_h5_x
+// [22] rms_y
+// [23] peak_value_y
+// [24] kurtosis_y
+// [25] crest_factor_y
+// [26] fm_real_y
+// [27] amp_fcsd_esq_y
+// [28] amp_fcsd_dir_y
+// [29] amp_fcsl_esq_y
+// [30] amp_fcsl_dir_y
+// [31] amp_fm_h1_y
+// [32] amp_fm_h2_y
+// [33] amp_fm_h3_y
+// [34] amp_fm_h4_y
+// [35] amp_fm_h5_y
+// [36] fm1_real_y
+// [37] amp_fcsd1_dir_y
+// [38] amp_fcsl1_dir_y
+// [39] amp_fm1_h1_y
+// [40] amp_fm1_h2_y
+// [41] amp_fm1_h3_y
+// [42] amp_fm1_h4_y
+// [43] amp_fm1_h5_y
+// [44] rms_z
+// [45] peak_value_z
+// [46] kurtosis_z
+// [47] crest_factor_z
+// [48] fm_real_z
+// [49] amp_fcsd_esq_z
+// [50] amp_fcsd_dir_z
+// [51] amp_fcsl_esq_z
+// [52] amp_fcsl_dir_z
+// [53] amp_fm_h1_z
+// [54] amp_fm_h2_z
+// [55] amp_fm_h3_z
+// [56] amp_fm_h4_z
+// [57] amp_fm_h5_z
+// [58] fm1_real_z
+// [59] amp_fcsd1_dir_z
+// [60] amp_fcsl1_dir_z
+// [61] amp_fm1_h1_z
+// [62] amp_fm1_h2_z
+// [63] amp_fm1_h3_z
+// [64] amp_fm1_h4_z
+// [65] amp_fm1_h5_z
 
-    const float SCALER_MEAN[57] = {
-    0.08577619f, 0.35491985f, 3.05101534f, 4.13635213f,
-    83.94563662f, 0.00185423f, 0.00156376f, 0.00250232f,
-    0.00136495f, 0.00015722f, 0.00012740f, 0.00007819f,
-    0.00037621f, 0.00188757f, 0.00043317f, 0.00029226f,
-    414.35622318f, 0.00663720f, 0.00352537f, 0.18487235f,
-    0.82303707f, 3.35892716f, 4.44531239f, 87.18168813f,
-    0.00186024f, 0.00177811f, 0.00197011f, 0.00163299f,
-    0.00015246f, 0.00006042f, 0.00009380f, 0.00134482f,
-    0.00348671f, 0.00038141f, 0.00042675f, 414.04577969f,
-    0.00928656f, 0.00352352f, 0.23531453f, 1.08896958f,
-    3.36592446f, 4.62139083f, 91.45779685f, 0.00188211f,
-    0.00186335f, 0.00200055f, 0.00193484f, 0.00017223f,
-    0.00011896f, 0.00018584f, 0.00362476f, 0.00445541f,
-    0.00197959f, 0.00244534f, 415.24463519f, 0.01282504f,
-    0.00732871f
+    const float SCALER_MEAN[66] = {
+    0.08584656f, 0.34948692f, 3.05162001f, 4.06962765f,
+    83.94516367f, 0.00213635f, 0.00168671f, 0.00274501f,
+    0.00153346f, 0.00015560f, 0.00012643f, 0.00007628f,
+    0.00038629f, 0.00190036f, 414.80722908f, 0.00715117f,
+    0.00397755f, 0.00287949f, 0.00097670f, 0.00011409f,
+    0.00071356f, 0.00014763f, 0.18517532f, 0.80971918f,
+    3.35636871f, 4.36708076f, 87.26667827f, 0.00206216f,
+    0.00193336f, 0.00224111f, 0.00172142f, 0.00015428f,
+    0.00005972f, 0.00009237f, 0.00131870f, 0.00328994f,
+    414.62405206f, 0.00989313f, 0.00378819f, 0.00642873f,
+    0.00244000f, 0.00445031f, 0.00330377f, 0.00064940f,
+    0.23547886f, 1.07392583f, 3.35998117f, 4.55554836f,
+    90.81716414f, 0.00206854f, 0.00201082f, 0.00217737f,
+    0.00207072f, 0.00016951f, 0.00011907f, 0.00017614f,
+    0.00334311f, 0.00439823f, 415.99644866f, 0.01388397f,
+    0.00833087f, 0.00953004f, 0.00697228f, 0.00298372f,
+    0.00496310f, 0.00108608f
 };
 
-    const float SCALER_SCALE[57] = {
-    0.00506450f, 0.03914676f, 0.11174106f, 0.37442287f,
-    7.08904474f, 0.00102946f, 0.00082172f, 0.00149043f,
-    0.00070366f, 0.00006002f, 0.00004824f, 0.00002930f,
-    0.00071894f, 0.00095965f, 0.00028974f, 0.00011178f,
-    7.68424623f, 0.00357770f, 0.00199257f, 0.01505594f,
-    0.11007952f, 0.14885279f, 0.40067289f, 7.92200225f,
-    0.00095025f, 0.00089508f, 0.00104583f, 0.00084937f,
-    0.00005992f, 0.00002204f, 0.00003468f, 0.00224008f,
-    0.00271346f, 0.00017230f, 0.00021318f, 7.45578623f,
-    0.00545410f, 0.00187711f, 0.01540258f, 0.13921336f,
-    0.15110808f, 0.45048460f, 8.91507420f, 0.00097468f,
-    0.00095990f, 0.00106148f, 0.00100036f, 0.00005400f,
-    0.00003498f, 0.00006810f, 0.00423110f, 0.00338373f,
-    0.00096789f, 0.00099888f, 7.85519587f, 0.00715212f,
-    0.00420579f
+    const float SCALER_SCALE[66] = {
+    0.00521551f, 0.03960892f, 0.12633402f, 0.37772030f,
+    7.14970033f, 0.00116393f, 0.00086753f, 0.00156163f,
+    0.00079096f, 0.00006278f, 0.00005198f, 0.00002909f,
+    0.00074424f, 0.00100178f, 7.83509092f, 0.00388865f,
+    0.00237522f, 0.00073255f, 0.00044190f, 0.00005144f,
+    0.00042044f, 0.00009190f, 0.01519355f, 0.10878249f,
+    0.16232550f, 0.40577344f, 7.85111772f, 0.00109122f,
+    0.00102567f, 0.00122640f, 0.00095632f, 0.00007186f,
+    0.00002325f, 0.00003791f, 0.00219804f, 0.00263555f,
+    7.86470797f, 0.00578130f, 0.00200883f, 0.00182521f,
+    0.00101776f, 0.00198893f, 0.00176647f, 0.00032463f,
+    0.01562842f, 0.13841914f, 0.16310449f, 0.45933048f,
+    8.73710760f, 0.00104518f, 0.00103617f, 0.00122282f,
+    0.00111653f, 0.00005621f, 0.00003925f, 0.00006567f,
+    0.00400725f, 0.00326585f, 8.00897393f, 0.00778675f,
+    0.00498716f, 0.00282530f, 0.00300738f, 0.00130496f,
+    0.00278740f, 0.00066073f
 };
 
     // Saída do modelo (índice = classe):
